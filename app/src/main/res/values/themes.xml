@@ -1,0 +1,20 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Factusoft" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    </style>
+
+    <style name="Theme.Factusoft" parent="Base.Theme.Factusoft" />
+
+    <!-- Tema para Activities tipo modal (fondo semi-transparente) -->
+    <style name="Theme.Factusoft.Modal" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">#80000000</item>
+        <item name="android:colorBackgroundCacheHint">@android:color/transparent</item>
+    </style>
+
+    <!-- Estilos para el AppBar -->
+    <style name="Theme.Factusoft.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
+    <style name="Theme.Factusoft.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+</resources>

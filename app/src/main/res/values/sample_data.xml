@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sample Dashboard Data -->
+    <string name="sample_sales_today">$2,450.00</string>
+    <string name="sample_total_products">156</string>
+    
+    <!-- Sample Inventory Data -->
+    <string-array name="sample_products">
+        <item>Laptop HP Pavilion 15" - Código: LP001 - Stock: 15 - $850.00</item>
+        <item>Mouse Inalámbrico Logitech - Código: MS002 - Stock: 45 - $25.00</item>
+        <item>Teclado Mecánico RGB - Código: KB003 - Stock: 8 - $120.00</item>
+        <item>Monitor Samsung 24" - Código: MN004 - Stock: 12 - $300.00</item>
+        <item>Impresora Canon LBP - Código: PR005 - Stock: 3 - $180.00</item>
+        <item>Disco Duro 1TB - Código: HD006 - Stock: 22 - $80.00</item>
+        <item>Memoria RAM 8GB - Código: RM007 - Stock: 35 - $60.00</item>
+        <item>Webcam HD 1080p - Código: WC008 - Stock: 18 - $45.00</item>
+    </string-array>
+    
+    <!-- Sample Sales Data -->
+    <string-array name="sample_sales">
+        <item>Venta #001 - Cliente: Juan Pérez - Hoy, 2:30 PM - $245.50 - Completada</item>
+        <item>Venta #002 - Cliente: María García - Hoy, 1:15 PM - $180.00 - Completada</item>
+        <item>Venta #003 - Cliente: Carlos López - Hoy, 11:45 AM - $320.75 - Completada</item>
+        <item>Venta #004 - Cliente: Ana Martínez - Hoy, 10:20 AM - $95.25 - Completada</item>
+        <item>Venta #005 - Cliente: Roberto Silva - Hoy, 9:30 AM - $450.00 - Completada</item>
+        <item>Venta #006 - Cliente: Laura Díaz - Ayer, 4:15 PM - $275.50 - Completada</item>
+        <item>Venta #007 - Cliente: Miguel Torres - Ayer, 3:00 PM - $125.00 - Completada</item>
+        <item>Venta #008 - Cliente: Carmen Ruiz - Ayer, 2:45 PM - $380.25 - Completada</item>
+    </string-array>
+    
+    <!-- Sample Purchases Data -->
+    <string-array name="sample_purchases">
+        <item>Compra #001 - Proveedor: Distribuidora ABC - Ayer, 10:15 AM - $1,250.00 - Recibida</item>
+        <item>Compra #002 - Proveedor: Tech Solutions - Ayer, 9:30 AM - $890.50 - Recibida</item>
+        <item>Compra #003 - Proveedor: Electrónicos Plus - 2 días, 2:20 PM - $1,680.75 - Recibida</item>
+        <item>Compra #004 - Proveedor: Distribuidora ABC - 3 días, 11:10 AM - $2,150.00 - Recibida</item>
+        <item>Compra #005 - Proveedor: Componentes XYZ - 4 días, 3:45 PM - $750.25 - Recibida</item>
+        <item>Compra #006 - Proveedor: Tech Solutions - 5 días, 1:30 PM - $1,420.00 - Recibida</item>
+    </string-array>
+    
+    <!-- Sample Customers Data -->
+    <string-array name="sample_customers">
+        <item>Juan Carlos Pérez - juan.perez@email.com - +52 555 123 4567 - Activo - 12 compras</item>
+        <item>María García López - maria.garcia@email.com - +52 555 234 5678 - Activo - 8 compras</item>
+        <item>Carlos López Martínez - carlos.lopez@email.com - +52 555 345 6789 - Activo - 15 compras</item>
+        <item>Ana Martínez Ruiz - ana.martinez@email.com - +52 555 456 7890 - Activo - 6 compras</item>
+        <item>Roberto Silva González - roberto.silva@email.com - +52 555 567 8901 - Activo - 9 compras</item>
+        <item>Laura Díaz Hernández - laura.diaz@email.com - +52 555 678 9012 - Activo - 11 compras</item>
+        <item>Miguel Torres Castro - miguel.torres@email.com - +52 555 789 0123 - Activo - 7 compras</item>
+        <item>Carmen Ruiz Morales - carmen.ruiz@email.com - +52 555 890 1234 - Activo - 13 compras</item>
+    </string-array>
+    
+    <!-- Sample Suppliers Data -->
+    <string-array name="sample_suppliers">
+        <item>Distribuidora ABC S.A. - Contacto: María González - +52 555 987 6543 - Activo - 5 compras</item>
+        <item>Tech Solutions México - Contacto: Juan Rodríguez - +52 555 876 5432 - Activo - 3 compras</item>
+        <item>Electrónicos Plus - Contacto: Ana Sánchez - +52 555 765 4321 - Activo - 4 compras</item>
+        <item>Componentes XYZ - Contacto: Carlos Mendoza - +52 555 654 3210 - Activo - 2 compras</item>
+        <item>Suministros Digitales - Contacto: Laura Vega - +52 555 543 2109 - Activo - 6 compras</item>
+        <item>Proveedores Unidos - Contacto: Roberto Flores - +52 555 432 1098 - Inactivo - 1 compra</item>
+    </string-array>
+    
+    <!-- Sample Reports Data -->
+    <string name="sample_monthly_sales">$12,450.00</string>
+    <string name="sample_monthly_transactions">156</string>
+    
+    <!-- Sample Top Products -->
+    <string-array name="sample_top_products">
+        <item>Laptop HP Pavilion - 25 ventas - $21,250.00</item>
+        <item>Mouse Inalámbrico Logitech - 18 ventas - $450.00</item>
+        <item>Teclado Mecánico RGB - 12 ventas - $1,440.00</item>
+        <item>Monitor Samsung 24" - 8 ventas - $2,400.00</item>
+        <item>Disco Duro 1TB - 15 ventas - $1,200.00</item>
+    </string-array>
+    
+</resources>

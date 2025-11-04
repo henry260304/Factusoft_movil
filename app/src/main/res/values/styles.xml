@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Estilo personalizado para el NavigationView -->
+    <style name="NavigationViewStyle" parent="Widget.Design.NavigationView">
+        <item name="itemTextColor">@color/nav_item_color</item>
+        <item name="itemIconTint">@color/nav_item_color</item>
+        <item name="itemTextAppearance">@style/NavigationViewTextAppearance</item>
+        <item name="itemIconPadding">20dp</item>
+        <item name="itemHorizontalPadding">16dp</item>
+        <item name="itemVerticalPadding">6dp</item>
+        <item name="itemMaxLines">1</item>
+        <item name="itemIconSize">24dp</item>
+    </style>
+    
+    <style name="NavigationViewTextAppearance" parent="TextAppearance.AppCompat.Body1">
+        <item name="android:textSize">15sp</item>
+        <item name="fontFamily">sans-serif-medium</item>
+    </style>
+</resources>

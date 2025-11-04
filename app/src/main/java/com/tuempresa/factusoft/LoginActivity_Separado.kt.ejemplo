@@ -1,0 +1,122 @@
+package com.tuempresa.factusoft
+
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.MaterialTheme
+import com.tuempresa.factusoft.ui.screens.LoginScreen
+
+/**
+ * EJEMPLO: LoginActivity con la vista SEPARADA
+ * 
+ * La vista (LoginScreen) está en: ui/screens/LoginScreen.kt
+ * La lógica (esta clase) está aquí
+ * 
+ * Esto es similar a como era antes:
+ * - activity_login.xml = Ahora es LoginScreen.kt
+ * - LoginActivity.kt = Solo lógica (como antes)
+ */
+class LoginActivitySeparado : ComponentActivity() {
+    
+    // Credenciales por defecto
+    private val defaultUsername = "admin"
+    private val defaultPassword = "123456"
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        setContent {
+            MaterialTheme {
+                // Aquí solo llamamos a la vista que está en otro archivo
+                LoginScreen(
+                    onLoginSuccess = { username ->
+                        saveLoginState(username)
+                        navigateToMain()
+                    },
+                    onShowError = { message ->
+                        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                    },
+                    authenticateUser = { username, password ->
+                        authenticateUser(username, password)
+                    }
+                )
+            }
+        }
+    }
+    
+    // ============================================
+    // TODA LA LÓGICA SEPARADA (como antes)
+    // ============================================
+    
+    private fun authenticateUser(username: String, password: String): Boolean {
+        return username == defaultUsername && password == defaultPassword
+    }
+    
+    private fun saveLoginState(username: String) {
+        val sharedPreferences = getSharedPreferences("FactusoftLogin", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        editor.putBoolean("isLoggedIn", true)
+        editor.putString("username", username)
+        editor.putLong("loginTime", System.currentTimeMillis())
+        editor.apply()
+    }
+    
+    private fun navigateToMain() {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+    }
+}
+
+/*
+╔══════════════════════════════════════════════════════════════╗
+║  COMPARACIÓN: Antes vs Ahora                                 ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  ANTES (XML):                                                ║
+║  ┌────────────────────────────────────────┐                ║
+║  │ activity_login.xml                     │ ← VISTA (150L) ║
+║  │ - TextViews                            │                ║
+║  │ - EditTexts                            │                ║
+║  │ - Buttons                              │                ║
+║  │ - Layouts                              │                ║
+║  └────────────────────────────────────────┘                ║
+║  ┌────────────────────────────────────────┐                ║
+║  │ LoginActivity.kt                       │ ← LÓGICA (100L)║
+║  │ - findViewById()                       │                ║
+║  │ - setOnClickListener()                 │                ║
+║  │ - validateInput()                      │                ║
+║  │ - authenticateUser()                   │                ║
+║  └────────────────────────────────────────┘                ║
+║                                                              ║
+║  AHORA (Compose - OPCIÓN 1 - TODO JUNTO):                   ║
+║  ┌────────────────────────────────────────┐                ║
+║  │ LoginActivity.kt                       │ ← TODO (280L)  ║
+║  │ - LoginScreen() @Composable ┐          │                ║
+║  │   (TextFields, Buttons)     │ VISTA    │                ║
+║  │                             ┘          │                ║
+║  │ - authenticateUser()        ┐          │                ║
+║  │ - saveLoginState()          │ LÓGICA   │                ║
+║  │ - navigateToMain()          ┘          │                ║
+║  └────────────────────────────────────────┘                ║
+║                                                              ║
+║  AHORA (Compose - OPCIÓN 2 - SEPARADO):                     ║
+║  ┌────────────────────────────────────────┐                ║
+║  │ ui/screens/LoginScreen.kt              │ ← VISTA (200L) ║
+║  │ - LoginScreen() @Composable            │                ║
+║  │   (TextFields, Buttons)                │                ║
+║  └────────────────────────────────────────┘                ║
+║  ┌────────────────────────────────────────┐                ║
+║  │ LoginActivity.kt                       │ ← LÓGICA (80L) ║
+║  │ - authenticateUser()                   │                ║
+║  │ - saveLoginState()                     │                ║
+║  │ - navigateToMain()                     │                ║
+║  └────────────────────────────────────────┘                ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+*/
+

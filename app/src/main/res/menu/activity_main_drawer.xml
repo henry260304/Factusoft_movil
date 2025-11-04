@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <!-- Sección Principal: Navegación -->
+    <group 
+        android:id="@+id/group_main"
+        android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_home"
+            android:icon="@drawable/ic_home"
+            android:title="Inicio" />
+        
+        <item
+            android:id="@+id/nav_inventory"
+            android:icon="@drawable/ic_inventory"
+            android:title="Inventario" />
+        
+        <item
+            android:id="@+id/nav_sales"
+            android:icon="@drawable/ic_sales"
+            android:title="Ventas" />
+        
+        <item
+            android:id="@+id/nav_purchases"
+            android:icon="@drawable/ic_purchases"
+            android:title="Compras" />
+        
+        <item
+            android:id="@+id/nav_customers"
+            android:icon="@drawable/ic_customers"
+            android:title="Clientes" />
+        
+        <item
+            android:id="@+id/nav_suppliers"
+            android:icon="@drawable/ic_suppliers"
+            android:title="Proveedores" />
+        
+        <item
+            android:id="@+id/nav_reports"
+            android:icon="@drawable/ic_reports"
+            android:title="Reportes" />
+    </group>
+
+    <!-- Sección de Configuración con separador -->
+    <item android:title="">
+        <menu>
+            <group 
+                android:id="@+id/group_settings"
+                android:checkableBehavior="none">
+                <item
+                    android:id="@+id/nav_settings"
+                    android:icon="@drawable/ic_settings"
+                    android:title="Configuración" />
+                
+                <item
+                    android:id="@+id/nav_logout"
+                    android:icon="@drawable/ic_logout"
+                    android:title="Cerrar Sesión" />
+            </group>
+        </menu>
+    </item>
+
+</menu>
