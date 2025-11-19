@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,7 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.*
 
 class CustomerCreateActivity : ComponentActivity() {
@@ -54,6 +54,7 @@ fun CustomerCreateScreen(
     var address by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var showSuccessMessage by remember { mutableStateOf(false) }
+    var successCustomerName by remember { mutableStateOf("") }
     
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -107,7 +108,7 @@ fun CustomerCreateScreen(
                                 color = Color(0xFF2E7D32)
                             )
                             Text(
-                                text = "El cliente se registró correctamente",
+                                text = "Cliente $successCustomerName registrado exitosamente en el servidor",
                                 fontSize = 14.sp,
                                 color = Color(0xFF2E7D32)
                             )
@@ -203,7 +204,7 @@ fun CustomerCreateScreen(
                             return@Button
                         }
                         
-                        // Crear cliente
+                        // Crear cliente en la API
                         isLoading = true
                         val newCustomer = NewCustomer(
                             custName = name,
@@ -213,35 +214,34 @@ fun CustomerCreateScreen(
                             custAddress = if (address.isEmpty()) null else address
                         )
                         
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                apiService.createCustomer(newCustomer, object : ApiService.ApiCallback<Customer> {
-                                    override fun onSuccess(data: Customer) {
-                                        isLoading = false
-                                        showSuccessMessage = true
-                                        Toast.makeText(context, "Cliente creado exitosamente", Toast.LENGTH_SHORT).show()
-                                        
-                                        // Limpiar formulario
-                                        name = ""
-                                        lastname = ""
-                                        phone = ""
-                                        email = ""
-                                        address = ""
-                                        
-                                        // Auto-cerrar después de 2 segundos
-                                        scope.launch {
-                                            delay(2000)
-                                            onSuccess()
-                                        }
-                                    }
+                        apiService.createCustomer(newCustomer, object : ApiService.ApiCallback<Customer> {
+                            override fun onSuccess(data: Customer) {
+                                scope.launch(Dispatchers.Main) {
+                                    isLoading = false
+                                    showSuccessMessage = true
+                                    successCustomerName = "${data.custName} ${data.custLastName}"
+                                    Toast.makeText(context, "✅ Cliente creado con ID: ${data.idCustomer}", Toast.LENGTH_SHORT).show()
                                     
-                                    override fun onError(error: String) {
-                                        isLoading = false
-                                        Toast.makeText(context, "Error: $error", Toast.LENGTH_LONG).show()
-                                    }
-                                })
+                                    // Limpiar formulario
+                                    name = ""
+                                    lastname = ""
+                                    phone = ""
+                                    email = ""
+                                    address = ""
+                                    
+                                    // Auto-cerrar después de 2 segundos
+                                    delay(2000)
+                                    onSuccess()
+                                }
                             }
-                        }
+                            
+                            override fun onError(error: String) {
+                                scope.launch(Dispatchers.Main) {
+                                    isLoading = false
+                                    Toast.makeText(context, "❌ Error al crear cliente: $error", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        })
                     },
                     modifier = Modifier.weight(1f),
                     enabled = !isLoading

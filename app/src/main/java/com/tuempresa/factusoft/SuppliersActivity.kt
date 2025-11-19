@@ -25,7 +25,6 @@ import kotlinx.coroutines.*
 class SuppliersActivity : ComponentActivity() {
     
     private val apiService = SupplierApiService()
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,8 +32,8 @@ class SuppliersActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 SuppliersScreen(
-                    onBackPressed = { finish() },
                     apiService = apiService,
+                    onBackPressed = { finish() },
                     onNavigateToCreate = {
                         startActivity(Intent(this, SupplierCreateActivity::class.java))
                     },
@@ -47,18 +46,13 @@ class SuppliersActivity : ComponentActivity() {
             }
         }
     }
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        scope.cancel()
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SuppliersScreen(
-    onBackPressed: () -> Unit,
     apiService: SupplierApiService,
+    onBackPressed: () -> Unit,
     onNavigateToCreate: () -> Unit,
     onNavigateToEdit: (Supplier) -> Unit
 ) {
@@ -68,42 +62,46 @@ fun SuppliersScreen(
     var isLoading by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var supplierToDelete by remember { mutableStateOf<Supplier?>(null) }
+    var hasError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    // Cargar proveedores al iniciar
-    LaunchedEffect(Unit) {
+    // Función para cargar proveedores desde la API
+    fun loadSuppliers() {
+        hasError = false
         isLoading = true
-        withContext(Dispatchers.IO) {
-            apiService.getAllSuppliers(object : SupplierApiService.ApiCallback<List<Supplier>> {
-                override fun onSuccess(data: List<Supplier>) {
+        
+        apiService.getAllSuppliers(object : SupplierApiService.ApiCallback<List<Supplier>> {
+            override fun onSuccess(data: List<Supplier>) {
+                scope.launch(Dispatchers.Main) {
                     suppliers = data
                     filteredSuppliers = data
                     isLoading = false
-                    Toast.makeText(context, "✅ ${data.size} proveedores cargados", Toast.LENGTH_SHORT).show()
+                    hasError = false
+                    Toast.makeText(context, "✅ ${data.size} proveedores cargados del servidor", Toast.LENGTH_SHORT).show()
                 }
-                
-                override fun onError(error: String) {
+            }
+            
+            override fun onError(error: String) {
+                scope.launch(Dispatchers.Main) {
                     isLoading = false
-                    if (error.contains("403")) {
-                        Toast.makeText(context, "⚠️ Servidor detenido. Cargando datos de prueba...", Toast.LENGTH_LONG).show()
-                        loadTestSuppliers { testSuppliers ->
-                            suppliers = testSuppliers
-                            filteredSuppliers = testSuppliers
-                        }
-                    } else {
-                        Toast.makeText(context, "❌ Error: $error\nCargando datos de prueba...", Toast.LENGTH_LONG).show()
-                        loadTestSuppliers { testSuppliers ->
-                            suppliers = testSuppliers
-                            filteredSuppliers = testSuppliers
-                        }
-                    }
+                    hasError = true
+                    errorMessage = error
+                    suppliers = emptyList()
+                    filteredSuppliers = emptyList()
+                    Toast.makeText(context, "❌ Error del servidor: $error", Toast.LENGTH_LONG).show()
                 }
-            })
-        }
+            }
+        })
     }
     
-    // Filtrar proveedores cuando cambia la búsqueda
+    // Cargar al iniciar
+    LaunchedEffect(Unit) {
+        loadSuppliers()
+    }
+    
+    // Filtrar proveedores
     LaunchedEffect(searchQuery) {
         filteredSuppliers = if (searchQuery.isEmpty()) {
             suppliers
@@ -126,10 +124,16 @@ fun SuppliersScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { loadSuppliers() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Recargar")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 )
             )
         },
@@ -161,8 +165,8 @@ fun SuppliersScreen(
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    StatsItem("Total", suppliers.size.toString(), Color(0xFF2196F3))
-                    StatsItem("Activos", suppliers.size.toString(), Color(0xFF4CAF50))
+                    StatsItem("Cargados", suppliers.size.toString(), Color(0xFF2196F3))
+                    StatsItem("Filtrados", filteredSuppliers.size.toString(), Color(0xFF4CAF50))
                 }
             }
             
@@ -187,16 +191,19 @@ fun SuppliersScreen(
                 singleLine = true
             )
             
-            // Loading indicator
+            // Loading o lista
             if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Cargando proveedores...")
+                    }
                 }
             } else {
-                // Lista de proveedores
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -212,47 +219,97 @@ fun SuppliersScreen(
                             }
                         )
                     }
+                    
+                    // Mensaje si está vacío
+                    if (filteredSuppliers.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 32.dp),
+                                colors = if (hasError) {
+                                    CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                                } else {
+                                    CardDefaults.cardColors()
+                                }
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        if (hasError) Icons.Default.CloudOff else Icons.Default.SearchOff,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = if (hasError) Color(0xFFF44336) else Color.Gray
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = if (hasError) {
+                                            "Error al conectar con el servidor"
+                                        } else if (searchQuery.isEmpty()) {
+                                            "No hay proveedores disponibles"
+                                        } else {
+                                            "No se encontraron proveedores"
+                                        },
+                                        color = if (hasError) Color(0xFFC62828) else Color.Gray,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    
+                                    if (hasError) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = errorMessage,
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF666666)
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Button(
+                                            onClick = { loadSuppliers() },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF2196F3)
+                                            )
+                                        ) {
+                                            Icon(Icons.Default.Refresh, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Reintentar")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
     
-    // Diálogo de confirmación de eliminación
+    // Diálogo de eliminación
     if (showDeleteDialog && supplierToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Eliminar Proveedor") },
-            text = { Text("¿Estás seguro de que quieres eliminar a ${supplierToDelete!!.nameSupplier}?") },
+            text = { Text("¿Estás seguro de eliminar a ${supplierToDelete!!.nameSupplier}?") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch {
-                            isLoading = true
-                            withContext(Dispatchers.IO) {
-                                apiService.deleteSupplier(supplierToDelete!!.idSupplier, object : SupplierApiService.ApiCallback<Boolean> {
-                                    override fun onSuccess(data: Boolean) {
-                                        Toast.makeText(context, "✅ Proveedor eliminado exitosamente", Toast.LENGTH_SHORT).show()
-                                        // Recargar lista
-                                        apiService.getAllSuppliers(object : SupplierApiService.ApiCallback<List<Supplier>> {
-                                            override fun onSuccess(data: List<Supplier>) {
-                                                suppliers = data
-                                                filteredSuppliers = data
-                                                isLoading = false
-                                            }
-                                            override fun onError(error: String) {
-                                                isLoading = false
-                                            }
-                                        })
-                                    }
-                                    
-                                    override fun onError(error: String) {
-                                        isLoading = false
-                                        Toast.makeText(context, "❌ Error al eliminar: $error", Toast.LENGTH_LONG).show()
-                                    }
-                                })
-                            }
-                        }
                         showDeleteDialog = false
+                        isLoading = true
+                        apiService.deleteSupplier(supplierToDelete!!.idSupplier, object : SupplierApiService.ApiCallback<Boolean> {
+                            override fun onSuccess(data: Boolean) {
+                                scope.launch(Dispatchers.Main) {
+                                    Toast.makeText(context, "✅ Proveedor eliminado", Toast.LENGTH_SHORT).show()
+                                    loadSuppliers()
+                                }
+                            }
+                            
+                            override fun onError(error: String) {
+                                scope.launch(Dispatchers.Main) {
+                                    isLoading = false
+                                    Toast.makeText(context, "❌ Error al eliminar: $error", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        })
                     }
                 ) {
                     Text("Eliminar", color = Color.Red)
@@ -277,9 +334,7 @@ fun SupplierCard(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -296,88 +351,37 @@ fun SupplierCard(
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = "Contacto",
-                            tint = Color(0xFF666666),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF666666), modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = supplier.contact,
-                            fontSize = 14.sp,
-                            color = Color(0xFF666666)
-                        )
+                        Text(text = supplier.contact, fontSize = 14.sp, color = Color(0xFF666666))
                     }
                     
                     Spacer(modifier = Modifier.height(4.dp))
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Phone,
-                            contentDescription = "Teléfono",
-                            tint = Color(0xFF666666),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF666666), modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = supplier.PhoneNumber,
-                            fontSize = 14.sp,
-                            color = Color(0xFF666666)
-                        )
+                        Text(text = supplier.PhoneNumber, fontSize = 14.sp, color = Color(0xFF666666))
                     }
                     
                     Spacer(modifier = Modifier.height(4.dp))
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Email,
-                            contentDescription = "Email",
-                            tint = Color(0xFF666666),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Icon(Icons.Default.Email, contentDescription = null, tint = Color(0xFF666666), modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = supplier.email,
-                            fontSize = 14.sp,
-                            color = Color(0xFF666666)
-                        )
+                        Text(text = supplier.email, fontSize = 14.sp, color = Color(0xFF666666))
                     }
                 }
                 
                 Row {
                     IconButton(onClick = onEdit) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Editar",
-                            tint = Color(0xFF2196F3)
-                        )
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color(0xFF2196F3))
                     }
                     IconButton(onClick = onDelete) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Eliminar",
-                            tint = Color(0xFFF44336)
-                        )
+                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color(0xFFF44336))
                     }
                 }
             }
         }
     }
-}
-
-private fun loadTestSuppliers(onLoaded: (List<Supplier>) -> Unit) {
-    val testSuppliers = listOf(
-        Supplier(1, "Proveedor Tecnológico S.A.", "Juan Pérez", "+1234567890", "juan@techprov.com"),
-        Supplier(2, "Distribuidora Global", "María García", "+1234567891", "maria@distglobal.com"),
-        Supplier(3, "Suministros Industriales", "Carlos López", "+1234567892", "carlos@sumindustriales.com"),
-        Supplier(4, "Materiales Premium", "Ana Martínez", "+1234567893", "ana@matpremium.com"),
-        Supplier(5, "Equipos y Herramientas", "Luis Rodríguez", "+1234567894", "luis@equiposyherr.com"),
-        Supplier(6, "Insumos Especializados", "Carmen Silva", "+1234567895", "carmen@insumosesp.com"),
-        Supplier(7, "Productos Químicos Ltd", "Roberto Torres", "+1234567896", "roberto@prodquimicos.com"),
-        Supplier(8, "Maquinaria Industrial", "Elena Vargas", "+1234567897", "elena@maqindustrial.com"),
-        Supplier(9, "Componentes Electrónicos", "Diego Morales", "+1234567898", "diego@compelectronicos.com"),
-        Supplier(10, "Servicios Logísticos", "Patricia Ruiz", "+1234567899", "patricia@servlogisticos.com")
-    )
-    onLoaded(testSuppliers)
 }

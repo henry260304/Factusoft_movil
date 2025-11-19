@@ -1,64 +1,38 @@
 package com.tuempresa.factusoft
 
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-import java.util.concurrent.TimeUnit
+import android.util.Log
 
+/**
+ * Servicio de API para Clientes
+ * Endpoint: https://factusoft-backend-2025-cndzh3e6cxcvdnch.northcentralus-01.azurewebsites.net/Catalogos/Customer/
+ */
 class ApiService {
     
+    private val baseUrl = "https://factusoft-backend-2025-cndzh3e6cxcvdnch.northcentralus-01.azurewebsites.net/Catalogos/Customer/"
     private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor { chain ->
-            val original = chain.request()
-            val requestBuilder = original.newBuilder()
-                .header("Accept", "application/json")
-                .header("User-Agent", "FactuSoft-Android")
-            
-            // Si necesitas un token, descomenta y configura esto:
-            // val token = "TU_TOKEN_AQUI"
-            // requestBuilder.header("Authorization", "Bearer $token")
-            
-            val request = requestBuilder.build()
-            
-            // Log para debug
-            println("=== REQUEST DEBUG ===")
-            println("URL: ${request.url}")
-            println("Method: ${request.method}")
-            println("Headers: ${request.headers}")
-            
-            val response = chain.proceed(request)
-            
-            println("=== RESPONSE DEBUG ===")
-            println("Status Code: ${response.code}")
-            println("Message: ${response.message}")
-            
-            response
-        }
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .build()
+    private val gson = Gson()
     
-    private val gson = GsonBuilder().create()
-    
-    companion object {
-        private const val BASE_URL = "https://factusoft-backend2025.azurewebsites.net"
-        private const val CUSTOMERS_ENDPOINT = "$BASE_URL/Catalogos/Customer/"
-    }
-    
-    // Callback interface para manejar respuestas
     interface ApiCallback<T> {
         fun onSuccess(data: T)
         fun onError(error: String)
     }
     
-    // Obtener lista de clientes (solo primera página)
-    fun getCustomers(callback: ApiCallback<List<Customer>>) {
+    /**
+     * Obtener todos los clientes (con paginación)
+     */
+    fun getAllCustomers(callback: ApiCallback<List<Customer>>) {
         val request = Request.Builder()
-            .url(CUSTOMERS_ENDPOINT)
+            .url(baseUrl)
+            .get()
             .build()
         
         client.newCall(request).enqueue(object : Callback {
@@ -68,76 +42,96 @@ class ApiService {
             
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    if (it.isSuccessful) {
-                        val responseBody = it.body?.string()
-                        try {
-                            val customerResponse = gson.fromJson(responseBody, CustomerResponse::class.java)
-                            callback.onSuccess(customerResponse.results)
-                        } catch (e: Exception) {
-                            callback.onError("Error al procesar respuesta: ${e.message}")
-                        }
-                    } else {
-                        callback.onError("Error del servidor: ${it.code}")
+                    if (!response.isSuccessful) {
+                        callback.onError("Error ${response.code}: ${response.message}")
+                        return
+                    }
+                    
+                    try {
+                        val jsonData = response.body?.string()
+                        val customerResponse = gson.fromJson(jsonData, CustomerResponse::class.java)
+                        callback.onSuccess(customerResponse.results)
+                    } catch (e: Exception) {
+                        callback.onError("Error al procesar datos: ${e.message}")
                     }
                 }
             }
         })
     }
     
-    // Obtener TODOS los clientes (todas las páginas)
-    fun getAllCustomers(callback: ApiCallback<List<Customer>>) {
-        getAllCustomersRecursive(CUSTOMERS_ENDPOINT, mutableListOf(), callback)
-    }
-    
-    private fun getAllCustomersRecursive(url: String, allCustomers: MutableList<Customer>, callback: ApiCallback<List<Customer>>) {
-        val request = Request.Builder()
-            .url(url)
-            .build()
+    /**
+     * Obtener todos los clientes de todas las páginas
+     */
+    fun getAllCustomersPaginated(callback: ApiCallback<List<Customer>>) {
+        Log.d("ApiService", "getAllCustomersPaginated iniciado")
+        Log.d("ApiService", "URL Base: $baseUrl")
         
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                callback.onError("Error de conexión: ${e.message}")
-            }
+        val allCustomers = mutableListOf<Customer>()
+        
+        fun fetchPage(url: String) {
+            Log.d("ApiService", "fetchPage: $url")
             
-            override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    if (it.isSuccessful) {
-                        val responseBody = it.body?.string()
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+            
+            Log.d("ApiService", "Ejecutando request...")
+            client.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("ApiService", "onFailure: ${e.message}", e)
+                    callback.onError("Error de conexión: ${e.message}")
+                }
+                
+                override fun onResponse(call: Call, response: Response) {
+                    Log.d("ApiService", "onResponse - Código: ${response.code}")
+                    response.use {
+                        if (!response.isSuccessful) {
+                            Log.e("ApiService", "Respuesta no exitosa: ${response.code} - ${response.message}")
+                            callback.onError("Error ${response.code}: ${response.message}")
+                            return
+                        }
+                        
                         try {
-                            val customerResponse = gson.fromJson(responseBody, CustomerResponse::class.java)
+                            val jsonData = response.body?.string()
+                            Log.d("ApiService", "JSON recibido (primeros 200 chars): ${jsonData?.take(200)}")
+                            
+                            val customerResponse = gson.fromJson(jsonData, CustomerResponse::class.java)
                             allCustomers.addAll(customerResponse.results)
                             
-                            // Si hay una página siguiente, cargarla
-                            if (customerResponse.next != null && customerResponse.next.isNotEmpty()) {
-                                getAllCustomersRecursive(customerResponse.next, allCustomers, callback)
+                            Log.d("ApiService", "Página procesada: ${customerResponse.results.size} clientes. Total acumulado: ${allCustomers.size}")
+                            Log.d("ApiService", "Next page: ${customerResponse.next}")
+                            
+                            // Si hay más páginas, continuar
+                            if (customerResponse.next != null) {
+                                fetchPage(customerResponse.next)
                             } else {
-                                // No hay más páginas, devolver todos los clientes
-                                callback.onSuccess(allCustomers.toList())
+                                // Ya no hay más páginas, retornar todos
+                                Log.d("ApiService", "Todas las páginas cargadas. Total: ${allCustomers.size} clientes")
+                                callback.onSuccess(allCustomers)
                             }
                         } catch (e: Exception) {
-                            callback.onError("Error al procesar respuesta: ${e.message}")
+                            Log.e("ApiService", "Error al procesar JSON: ${e.message}", e)
+                            callback.onError("Error al procesar datos: ${e.message}")
                         }
-                    } else {
-                        val errorMsg = when (it.code) {
-                            403 -> "Error 403: Acceso prohibido. El servidor puede requerir autenticación o permisos especiales. Por favor contacta al administrador del sistema."
-                            404 -> "Error 404: Recurso no encontrado"
-                            500 -> "Error 500: Error interno del servidor"
-                            else -> "Error del servidor: ${it.code}"
-                        }
-                        callback.onError(errorMsg)
                     }
                 }
-            }
-        })
+            })
+        }
+        
+        fetchPage(baseUrl)
     }
     
-    // Crear nuevo cliente
+    /**
+     * Crear un nuevo cliente
+     */
     fun createCustomer(customer: NewCustomer, callback: ApiCallback<Customer>) {
-        val json = gson.toJson(customer)
-        val requestBody = json.toRequestBody("application/json".toMediaType())
+        val jsonBody = gson.toJson(customer)
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = jsonBody.toRequestBody(mediaType)
         
         val request = Request.Builder()
-            .url(CUSTOMERS_ENDPOINT)
+            .url(baseUrl)
             .post(requestBody)
             .build()
         
@@ -148,33 +142,33 @@ class ApiService {
             
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    if (it.isSuccessful) {
-                        val responseBody = it.body?.string()
-                        try {
-                            val newCustomer = gson.fromJson(responseBody, Customer::class.java)
-                            callback.onSuccess(newCustomer)
-                        } catch (e: Exception) {
-                            callback.onError("Error al procesar respuesta: ${e.message}")
-                        }
-                    } else {
-                        callback.onError("Error del servidor: ${it.code}")
+                    if (!response.isSuccessful) {
+                        callback.onError("Error ${response.code}: ${response.message}")
+                        return
+                    }
+                    
+                    try {
+                        val jsonData = response.body?.string()
+                        val newCustomer = gson.fromJson(jsonData, Customer::class.java)
+                        callback.onSuccess(newCustomer)
+                    } catch (e: Exception) {
+                        callback.onError("Error al procesar respuesta: ${e.message}")
                     }
                 }
             }
         })
     }
     
-    // Actualizar cliente existente
+    /**
+     * Actualizar un cliente existente (PUT)
+     */
     fun updateCustomer(customerId: Int, customer: NewCustomer, callback: ApiCallback<Customer>) {
-        val json = gson.toJson(customer)
-        val requestBody = json.toRequestBody("application/json".toMediaType())
-        
-        // Probar diferentes formatos de URL
-        val updateUrl = "$CUSTOMERS_ENDPOINT$customerId/"
-        println("DEBUG: URL de actualización: $updateUrl")
+        val jsonBody = gson.toJson(customer)
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = jsonBody.toRequestBody(mediaType)
         
         val request = Request.Builder()
-            .url(updateUrl)
+            .url("$baseUrl$customerId/")
             .put(requestBody)
             .build()
         
@@ -185,37 +179,33 @@ class ApiService {
             
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    println("DEBUG: Response code: ${it.code}")
-                    println("DEBUG: Response message: ${it.message}")
+                    if (!response.isSuccessful) {
+                        callback.onError("Error ${response.code}: ${response.message}")
+                        return
+                    }
                     
-                    if (it.isSuccessful) {
-                        val responseBody = it.body?.string()
-                        try {
-                            val updatedCustomer = gson.fromJson(responseBody, Customer::class.java)
-                            callback.onSuccess(updatedCustomer)
-                        } catch (e: Exception) {
-                            callback.onError("Error al procesar respuesta: ${e.message}")
-                        }
-                    } else {
-                        val errorBody = it.body?.string()
-                        println("DEBUG: Error response body: $errorBody")
-                        callback.onError("Error del servidor: ${it.code} - ${it.message}")
+                    try {
+                        val jsonData = response.body?.string()
+                        val updatedCustomer = gson.fromJson(jsonData, Customer::class.java)
+                        callback.onSuccess(updatedCustomer)
+                    } catch (e: Exception) {
+                        callback.onError("Error al procesar respuesta: ${e.message}")
                     }
                 }
             }
         })
     }
     
-    // Actualizar cliente existente - Versión alternativa con PATCH
+    /**
+     * Actualizar un cliente existente (PATCH) - método alternativo
+     */
     fun updateCustomerPatch(customerId: Int, customer: NewCustomer, callback: ApiCallback<Customer>) {
-        val json = gson.toJson(customer)
-        val requestBody = json.toRequestBody("application/json".toMediaType())
-        
-        val updateUrl = "$CUSTOMERS_ENDPOINT$customerId/"
-        println("DEBUG: URL de actualización PATCH: $updateUrl")
+        val jsonBody = gson.toJson(customer)
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = jsonBody.toRequestBody(mediaType)
         
         val request = Request.Builder()
-            .url(updateUrl)
+            .url("$baseUrl$customerId/")
             .patch(requestBody)
             .build()
         
@@ -226,31 +216,29 @@ class ApiService {
             
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    println("DEBUG: PATCH Response code: ${it.code}")
-                    println("DEBUG: PATCH Response message: ${it.message}")
+                    if (!response.isSuccessful) {
+                        callback.onError("Error ${response.code}: ${response.message}")
+                        return
+                    }
                     
-                    if (it.isSuccessful) {
-                        val responseBody = it.body?.string()
-                        try {
-                            val updatedCustomer = gson.fromJson(responseBody, Customer::class.java)
-                            callback.onSuccess(updatedCustomer)
-                        } catch (e: Exception) {
-                            callback.onError("Error al procesar respuesta: ${e.message}")
-                        }
-                    } else {
-                        val errorBody = it.body?.string()
-                        println("DEBUG: PATCH Error response body: $errorBody")
-                        callback.onError("Error del servidor: ${it.code} - ${it.message}")
+                    try {
+                        val jsonData = response.body?.string()
+                        val updatedCustomer = gson.fromJson(jsonData, Customer::class.java)
+                        callback.onSuccess(updatedCustomer)
+                    } catch (e: Exception) {
+                        callback.onError("Error al procesar respuesta: ${e.message}")
                     }
                 }
             }
         })
     }
     
-    // Eliminar cliente
+    /**
+     * Eliminar un cliente
+     */
     fun deleteCustomer(customerId: Int, callback: ApiCallback<Boolean>) {
         val request = Request.Builder()
-            .url("$CUSTOMERS_ENDPOINT$customerId/")
+            .url("$baseUrl$customerId/")
             .delete()
             .build()
         
@@ -261,13 +249,15 @@ class ApiService {
             
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    if (it.isSuccessful) {
-                        callback.onSuccess(true)
-                    } else {
-                        callback.onError("Error del servidor: ${it.code}")
+                    if (!response.isSuccessful) {
+                        callback.onError("Error ${response.code}: ${response.message}")
+                        return
                     }
+                    
+                    callback.onSuccess(true)
                 }
             }
         })
     }
 }
+

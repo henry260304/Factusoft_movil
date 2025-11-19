@@ -94,9 +94,7 @@ fun SupplierEditScreen(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Nombre de la Empresa") },
-                leadingIcon = {
-                    Icon(Icons.Default.Business, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Business, null) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
             )
@@ -105,9 +103,7 @@ fun SupplierEditScreen(
                 value = contact,
                 onValueChange = { contact = it },
                 label = { Text("Persona de Contacto") },
-                leadingIcon = {
-                    Icon(Icons.Default.Person, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Person, null) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
             )
@@ -116,9 +112,7 @@ fun SupplierEditScreen(
                 value = phone,
                 onValueChange = { phone = it },
                 label = { Text("Teléfono") },
-                leadingIcon = {
-                    Icon(Icons.Default.Phone, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Phone, null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
@@ -128,9 +122,7 @@ fun SupplierEditScreen(
                 value = email,
                 onValueChange = { email = it },
                 label = { Text("Email") },
-                leadingIcon = {
-                    Icon(Icons.Default.Email, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Email, null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
@@ -153,12 +145,12 @@ fun SupplierEditScreen(
                 Button(
                     onClick = {
                         if (name.isEmpty() || contact.isEmpty() || phone.isEmpty() || email.isEmpty()) {
-                            Toast.makeText(context, "Por favor completa todos los campos", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Completa todos los campos", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         
                         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                            Toast.makeText(context, "Por favor ingresa un email válido", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Email inválido", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         
@@ -171,22 +163,22 @@ fun SupplierEditScreen(
                             email = email
                         )
                         
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                apiService.updateSupplier(updatedSupplier, object : SupplierApiService.ApiCallback<Supplier> {
-                                    override fun onSuccess(data: Supplier) {
-                                        isLoading = false
-                                        Toast.makeText(context, "✅ Proveedor actualizado exitosamente", Toast.LENGTH_SHORT).show()
-                                        onSuccess()
-                                    }
-                                    
-                                    override fun onError(error: String) {
-                                        isLoading = false
-                                        Toast.makeText(context, "Error: $error", Toast.LENGTH_LONG).show()
-                                    }
-                                })
+                        apiService.updateSupplier(updatedSupplier, object : SupplierApiService.ApiCallback<Supplier> {
+                            override fun onSuccess(data: Supplier) {
+                                scope.launch(Dispatchers.Main) {
+                                    isLoading = false
+                                    Toast.makeText(context, "✅ Proveedor actualizado", Toast.LENGTH_SHORT).show()
+                                    onSuccess()
+                                }
                             }
-                        }
+                            
+                            override fun onError(error: String) {
+                                scope.launch(Dispatchers.Main) {
+                                    isLoading = false
+                                    Toast.makeText(context, "❌ Error: $error", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        })
                     },
                     modifier = Modifier.weight(1f),
                     enabled = !isLoading

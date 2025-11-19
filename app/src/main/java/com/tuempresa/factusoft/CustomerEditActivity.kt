@@ -180,7 +180,7 @@ fun CustomerEditScreen(
                             return@Button
                         }
                         
-                        // Actualizar cliente
+                        // Actualizar cliente en la API
                         isLoading = true
                         val updatedCustomer = NewCustomer(
                             custName = name,
@@ -190,38 +190,42 @@ fun CustomerEditScreen(
                             custAddress = if (address.isEmpty()) null else address
                         )
                         
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                apiService.updateCustomer(customer.idCustomer, updatedCustomer, object : ApiService.ApiCallback<Customer> {
-                                    override fun onSuccess(data: Customer) {
-                                        isLoading = false
-                                        Toast.makeText(context, "Cliente actualizado exitosamente", Toast.LENGTH_SHORT).show()
-                                        onSuccess()
-                                    }
-                                    
-                                    override fun onError(error: String) {
-                                        // Intentar con PATCH si PUT falla
-                                        if (error.contains("404") || error.contains("405")) {
-                                            apiService.updateCustomerPatch(customer.idCustomer, updatedCustomer, object : ApiService.ApiCallback<Customer> {
-                                                override fun onSuccess(data: Customer) {
-                                                    isLoading = false
-                                                    Toast.makeText(context, "Cliente actualizado exitosamente", Toast.LENGTH_SHORT).show()
-                                                    onSuccess()
-                                                }
-                                                
-                                                override fun onError(error: String) {
-                                                    isLoading = false
-                                                    Toast.makeText(context, "Error: $error", Toast.LENGTH_LONG).show()
-                                                }
-                                            })
-                                        } else {
-                                            isLoading = false
-                                            Toast.makeText(context, "Error: $error", Toast.LENGTH_LONG).show()
-                                        }
-                                    }
-                                })
+                        apiService.updateCustomer(customer.idCustomer, updatedCustomer, object : ApiService.ApiCallback<Customer> {
+                            override fun onSuccess(data: Customer) {
+                                scope.launch(Dispatchers.Main) {
+                                    isLoading = false
+                                    Toast.makeText(context, "✅ Cliente actualizado exitosamente", Toast.LENGTH_SHORT).show()
+                                    onSuccess()
+                                }
                             }
-                        }
+                            
+                            override fun onError(error: String) {
+                                // Intentar con PATCH si PUT falla
+                                if (error.contains("404") || error.contains("405")) {
+                                    apiService.updateCustomerPatch(customer.idCustomer, updatedCustomer, object : ApiService.ApiCallback<Customer> {
+                                        override fun onSuccess(data: Customer) {
+                                            scope.launch(Dispatchers.Main) {
+                                                isLoading = false
+                                                Toast.makeText(context, "✅ Cliente actualizado exitosamente", Toast.LENGTH_SHORT).show()
+                                                onSuccess()
+                                            }
+                                        }
+                                        
+                                        override fun onError(error: String) {
+                                            scope.launch(Dispatchers.Main) {
+                                                isLoading = false
+                                                Toast.makeText(context, "❌ Error al actualizar: $error", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    })
+                                } else {
+                                    scope.launch(Dispatchers.Main) {
+                                        isLoading = false
+                                        Toast.makeText(context, "❌ Error al actualizar: $error", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                        })
                     },
                     modifier = Modifier.weight(1f),
                     enabled = !isLoading

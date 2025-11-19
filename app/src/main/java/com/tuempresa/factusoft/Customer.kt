@@ -3,6 +3,9 @@ package com.tuempresa.factusoft
 import com.google.gson.annotations.SerializedName
 import java.io.Serializable
 
+/**
+ * Modelo de Cliente - Conectado a API Real
+ */
 data class Customer(
     @SerializedName("idCustomer")
     val idCustomer: Int,
@@ -23,7 +26,9 @@ data class Customer(
     val custAddress: String?
 ) : Serializable
 
-// Data class para la respuesta de la API
+/**
+ * Respuesta paginada de la API
+ */
 data class CustomerResponse(
     val count: Int,
     val next: String?,
@@ -31,7 +36,9 @@ data class CustomerResponse(
     val results: List<Customer>
 )
 
-// Data class para crear un nuevo cliente
+/**
+ * Modelo para crear/actualizar un cliente
+ */
 data class NewCustomer(
     @SerializedName("CustName")
     val custName: String,

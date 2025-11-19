@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Button
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -30,11 +33,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -163,7 +168,10 @@ fun MainApp(
                 )
             }
         ) { paddingValues ->
-            DashboardScreen(modifier = Modifier.padding(paddingValues))
+            DashboardScreen(
+                modifier = Modifier.padding(paddingValues),
+                context = context
+            )
         }
     }
 }
@@ -264,7 +272,82 @@ fun DrawerMenuItem(
 }
 
 @Composable
-fun DashboardScreen(modifier: Modifier = Modifier) {
+fun DashboardScreen(modifier: Modifier = Modifier, context: Context) {
+    val apiService = remember { DashboardApiService() }
+    val scope = rememberCoroutineScope()
+    
+    var categorySales by remember { mutableStateOf<List<CategorySales>>(emptyList()) }
+    var topClients by remember { mutableStateOf<List<TopClient>>(emptyList()) }
+    var monthlySales by remember { mutableStateOf<List<MonthlySales>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    
+    // Calcular totales
+    val totalSales = categorySales.sumOf { it.totalLinea }
+    val currentMonthSales = monthlySales.lastOrNull()?.totalVentas ?: 0.0
+    
+    // Función para cargar todos los datos
+    fun loadDashboardData() {
+        isLoading = true
+        hasError = false
+        
+        apiService.getCategorySales(object : DashboardApiService.ApiCallback<List<CategorySales>> {
+            override fun onSuccess(data: List<CategorySales>) {
+                scope.launch(Dispatchers.Main) {
+                    categorySales = data
+                }
+            }
+            
+            override fun onError(error: String) {
+                scope.launch(Dispatchers.Main) {
+                    hasError = true
+                    errorMessage = error
+                }
+            }
+        })
+        
+        apiService.getTopClients(object : DashboardApiService.ApiCallback<List<TopClient>> {
+            override fun onSuccess(data: List<TopClient>) {
+                scope.launch(Dispatchers.Main) {
+                    topClients = data
+                }
+            }
+            
+            override fun onError(error: String) {
+                scope.launch(Dispatchers.Main) {
+                    if (!hasError) {
+                        hasError = true
+                        errorMessage = error
+                    }
+                }
+            }
+        })
+        
+        apiService.getMonthlySales(object : DashboardApiService.ApiCallback<List<MonthlySales>> {
+            override fun onSuccess(data: List<MonthlySales>) {
+                scope.launch(Dispatchers.Main) {
+                    monthlySales = data
+                    isLoading = false
+                }
+            }
+            
+            override fun onError(error: String) {
+                scope.launch(Dispatchers.Main) {
+                    if (!hasError) {
+                        hasError = true
+                        errorMessage = error
+                    }
+                    isLoading = false
+                }
+            }
+        })
+    }
+    
+    LaunchedEffect(Unit) {
+        loadDashboardData()
+    }
+    
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -272,92 +355,191 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        // Título
-        Text(
-            text = "Resumen del Día",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF333333),
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-        
-        // Cards de resumen
+        // Título con botón de actualizar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCard(
-                title = "Ventas Hoy",
-                value = "$2,450.00",
-                valueColor = Color(0xFF4CAF50),
-                modifier = Modifier.weight(1f)
+            Text(
+                text = "Dashboard General",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
             )
-            DashboardCard(
-                title = "Productos",
-                value = "156",
-                valueColor = Color(0xFFFF9800),
-                modifier = Modifier.weight(1f)
-            )
-        }
-        
-        // Productos con Stock Bajo
-        SectionTitle("Productos con Stock Bajo")
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                LowStockItem("Mouse Inalámbrico", minStock = 10, currentStock = 3)
-                LowStockItem("Silla de Oficina", minStock = 3, currentStock = 0, isOutOfStock = true)
-                LowStockItem("Teclado Mecánico", minStock = 5, currentStock = 2, isLast = true)
+            if (!isLoading) {
+                IconButton(onClick = { loadDashboardData() }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Actualizar", tint = Color(0xFF2196F3))
+                }
             }
         }
         
-        // Actividad Reciente
-        SectionTitle("Actividad Reciente")
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                ActivityItem("Venta #1 - Cliente: Juan Pérez", "10:30 AM", "$850", Color(0xFF4CAF50))
-                ActivityItem("Compra #1 - Proveedor: TechMax", "09:15 AM", "$1200", Color(0xFFFF9800))
-                ActivityItem("Nuevo cliente: María García", "08:45 AM", null, null)
-                ActivityItem("Venta #2 - Cliente: Carlos López", "08:20 AM", "$120", Color(0xFF4CAF50), isLast = true)
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Cargando datos del dashboard...", fontSize = 14.sp, color = Color(0xFF666666))
+                }
             }
-        }
-        
-        // Compras Pendientes
-        SectionTitle("Compras Pendientes")
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
+        } else if (hasError) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFF44336), modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Error al cargar datos", fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
+                    Text(errorMessage, fontSize = 12.sp, color = Color(0xFF666666), modifier = Modifier.padding(top = 4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { loadDashboardData() }) {
+                        Text("Reintentar")
+                    }
+                }
+            }
+        } else {
+            // Cards de resumen
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Tienes compras pendientes por procesar",
-                    fontSize = 16.sp,
-                    color = Color(0xFF333333),
+                DashboardCard(
+                    title = "Total Ventas 2025",
+                    value = String.format("$%,.2f", totalSales),
+                    valueColor = Color(0xFF4CAF50),
                     modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = "12",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2196F3)
+                DashboardCard(
+                    title = "Ventas Este Mes",
+                    value = String.format("$%,.2f", currentMonthSales),
+                    valueColor = Color(0xFF2196F3),
+                    modifier = Modifier.weight(1f)
                 )
+            }
+            
+            // Gráfico de pastel - Ventas por Categoría
+            SectionTitle("Ventas por Categoría")
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    PieChart(
+                        data = categorySales.map { it.categoria to it.totalLinea }
+                    )
+                    
+                    // Tabla de ventas por categoría
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Tabla de Ventas por Categoría", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    
+                    categorySales.sortedByDescending { it.totalLinea }.forEachIndexed { index, item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "${index + 1}. ${item.categoria}",
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = String.format("$%,.2f", item.totalLinea),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4CAF50)
+                            )
+                        }
+                        if (index < categorySales.size - 1) {
+                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                        }
+                    }
+                }
+            }
+            
+            // Gráfico de barras - Top 5 Clientes
+            SectionTitle("Top 5 Clientes")
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    HorizontalBarChart(
+                        data = topClients.map { it.nombre to it.totalGasto },
+                        maxValue = topClients.maxOfOrNull { it.totalGasto }
+                    )
+                }
+            }
+            
+            // Gráfico de barras verticales - Ventas Mensuales
+            SectionTitle("Ventas Mensuales 2025")
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    BarChart(
+                        data = monthlySales.map { 
+                            it.nombreMes.replaceFirstChar { char -> char.uppercaseChar() } to it.totalVentas 
+                        },
+                        maxValue = monthlySales.maxOfOrNull { it.totalVentas },
+                        barColor = Color(0xFF2196F3)
+                    )
+                    
+                    // Tabla de ventas mensuales
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Tabla de Ventas Mensuales", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    
+                    monthlySales.forEachIndexed { index, item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = item.nombreMes.replaceFirstChar { char -> char.uppercaseChar() },
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = String.format("$%,.2f", item.totalVentas),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2196F3)
+                            )
+                        }
+                        if (index < monthlySales.size - 1) {
+                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                        }
+                    }
+                }
             }
         }
     }
@@ -476,6 +658,21 @@ fun ActivityItem(description: String, time: String, amount: String?, amountColor
 @Composable
 fun DashboardScreenPreview() {
     MaterialTheme {
-        DashboardScreen()
+        // Preview sin datos reales - solo para diseño
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF5F5F5))
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Dashboard General",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Vista previa del Dashboard", fontSize = 14.sp, color = Color(0xFF666666))
+        }
     }
 }
